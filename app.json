@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "VentanaGo",
-    "slug": "ventanago",
+    "slug": "rn-ventanaGo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -19,7 +19,9 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "permissions": ["android.permission.CAMERA"],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -43,7 +45,9 @@
         {
           "provider": "none",
           "android": {
-            "xRMode": ["AR"]
+            "xRMode": [
+              "AR"
+            ]
           }
         }
       ]
@@ -54,7 +58,11 @@
     },
     "extra": {
       "apiBaseUrl": "https://ventanago-api.onrender.com",
-      "imagenBaseUrl": "https://ventanago.vercel.app/"
-    }
+      "imagenBaseUrl": "https://ventanago.vercel.app/",
+      "eas": {
+        "projectId": "e5f6b857-d40e-4037-9dbd-6dd3d29ab54f"
+      }
+    },
+    "owner": "erickrct"
   }
 }
