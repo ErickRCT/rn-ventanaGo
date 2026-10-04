@@ -46,3 +46,4 @@ example
 *.apk
 *.aab
 build-apk.log
+build-reintentos.log
