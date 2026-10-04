@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { ViroARSceneNavigator } from "@reactvision/react-viro";
 import { ActivityIndicator, Button, IconButton, Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { EscenaVentana, type ControlEscena } from "@/ar/EscenaVentana";
+import type { ControlEscena } from "@/ar/EscenaVentana";
 import { verificarSoporteAR, type EstadoSoporteAR } from "@/ar/soporte";
 import { Aviso } from "@/ui/Estados";
 import { COLORES } from "@/ui/tema";
 import type { ConfigVentana } from "@/ventana/geometria";
+
+// ViroReact (código nativo de AR) se carga recién al abrir esta pantalla.
+const NavegadorAR = lazy(() => import("@/ar/NavegadorAR"));
 
 type Fase = "iniciando" | "buscando" | "pared" | "colocada";
 
@@ -99,12 +101,9 @@ export default function RealidadAumentada() {
 
     return (
         <View style={estilos.fondo}>
-            <ViroARSceneNavigator
-                style={StyleSheet.absoluteFill}
-                autofocus
-                initialScene={{ scene: EscenaVentana as never }}
-                viroAppProps={control}
-            />
+            <Suspense fallback={<View style={[StyleSheet.absoluteFill, estilos.centro]}><ActivityIndicator color="#fff" size="large" /></View>}>
+                <NavegadorAR control={control} />
+            </Suspense>
 
             <SafeAreaView style={estilos.superior} edges={["top"]} pointerEvents="box-none">
                 <View style={estilos.barra}>

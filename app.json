@@ -50,7 +50,8 @@
             ]
           }
         }
-      ]
+      ],
+      "./plugins/registroDeFallos"
     ],
     "experiments": {
       "typedRoutes": true,
