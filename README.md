@@ -1,56 +1,94 @@
-# Welcome to your Expo app 👋
+# VentanaGo · App móvil (React Native + Expo)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App Android de VentanaGo para diseñar, cotizar y pedir ventanas de aluminio, con **realidad aumentada** para ver la ventana sobre la pared a tamaño real. Reemplaza al front web (`njs-ventanaGo`) y usa el **mismo backend en Render** (`ms-ventanaGo`) y la misma base de datos en **TiDB Cloud**: no hubo cambios en el servidor.
 
-## Get started
+## Una sola app, tres roles
 
-1. Install dependencies
+Al iniciar sesión, la app muestra el menú según el rol de la cuenta (el servidor valida cada permiso):
 
-   ```bash
-   npm install
-   ```
+| Rol | Pantallas |
+|---|---|
+| **Cliente** | Diseñar ventana (con precio estimado y realidad aumentada), Carrito, Mis cotizaciones |
+| **Empresa / proveedor** | Solicitudes: aceptar con precio, modificar medidas o rechazar, y avisar al cliente |
+| **Administrador** | Inicio, Crear cotización (con PDF de cotización y orden de trabajo), Cotizaciones, Clientes, Pautas, Tipos de pauta, Perfiles, Tipos de perfil, Quincallería, Vidrios, Colores y Series. También ve las pantallas de Cliente y Empresa. |
 
-2. Start the app
+Se eligió una sola app (y no tres) porque comparten el login, el catálogo, los servicios y el dibujo de la ventana: un solo APK que mantener, y los permisos los sigue controlando el backend.
 
-   ```bash
-   npx expo start
-   ```
+> **Venta al público (accesorios)** no se incluyó: el front web llamaba a `/catalogo/...` y `/api/images/upload`, que no existen en el backend actual.
 
-In the output, you'll find options to open the app in a
+## Realidad aumentada (solo Android)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Usa **ARCore** a través de [ViroReact](https://github.com/ReactVision/viro) (`@reactvision/react-viro`).
+- La ventana se construye en el teléfono con las medidas, el color y el vidrio elegidos (misma geometría que el dibujo de vista previa, en `src/ventana/geometria.ts`), a escala 1:1.
+- La cámara detecta paredes; el usuario toca una y la ventana queda pegada en ese punto, derecha. Se puede girar o cambiar de lugar.
+- Antes de abrirla, la app revisa el teléfono (`src/ar/soporte.ts`). Si **no** puede usarla, el botón queda bloqueado y se muestra el motivo:
+  - no es Android (iPhone u otro),
+  - Android anterior a 7.0,
+  - el teléfono no es compatible con ARCore (Servicios de Google Play para RA),
+  - no se pudo confirmar ARCore (sin conexión o sin los servicios instalados),
+  - se negó el permiso de cámara.
+- ARCore está declarado como **opcional**, así que la app se instala también en teléfonos sin ARCore (todo lo demás funciona).
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Configuración
 
-## Get a fresh project
+`app.json` → `expo.extra`:
 
-When you're ready, run:
+- `apiBaseUrl`: backend (por defecto `https://ventanago-api.onrender.com`).
+- `imagenBaseUrl`: de dónde se leen las imágenes del catálogo (por defecto el front web en Vercel, carpeta `pautas/`).
+
+## Desarrollo
 
 ```bash
-npm run reset-project
+npm install
+npx expo run:android      # compila e instala una versión de desarrollo en un teléfono o emulador
+npm run typecheck
+npm run lint
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+> La realidad aumentada usa código nativo, así que **no funciona en Expo Go**: hay que usar `expo run:android` o un APK.
 
-### Other setup steps
+## Generar el APK para descargar e instalar
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### Opción A: en la nube con EAS (no necesita Android Studio)
 
-## Learn more
+```bash
+npm install -g eas-cli
+eas login                 # cuenta gratuita de https://expo.dev
+eas build -p android --profile preview
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Al terminar (10 a 20 minutos), EAS entrega un enlace y un código QR para descargar el `.apk`. El perfil `preview` de `eas.json` genera APK; `production` genera el `.aab` para Google Play.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Opción B: en el computador (Android Studio / Android SDK + JDK 17 o superior)
 
-## Join the community
+```bash
+npx expo prebuild -p android
+cd android
+gradlew assembleRelease
+```
 
-Join our community of developers creating universal apps.
+El APK queda en `android/app/build/outputs/apk/release/app-release.apk`.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+> Este APK se firma con la clave de depuración que genera Expo: sirve para instalarlo directamente en los teléfonos, pero para publicarlo en Google Play hay que firmarlo con una clave propia (EAS lo hace automáticamente).
+
+### Instalarlo en el teléfono
+
+1. Copia el `.apk` al teléfono (cable, Drive, WhatsApp o el enlace de EAS).
+2. Ábrelo y acepta **Instalar apps de origen desconocido** cuando Android lo pida.
+3. Abre **VentanaGo** e inicia sesión con tu usuario.
+
+## Estructura
+
+```
+src/
+  app/                 Pantallas (Expo Router)
+    login.tsx
+    realidad-aumentada.tsx
+    (app)/             Menú lateral por rol y pantallas de cada módulo
+  api/                 Llamadas al backend (catálogo, cotizaciones, solicitudes, sesión)
+  ar/                  Realidad aumentada: soporte del teléfono, escena de Viro, botón
+  admin/               Mantenedor genérico y formularios del administrador
+  empresa/             Respuesta a solicitudes
+  ventana/             Geometría, dibujo SVG y reglas del catálogo (forma, hojas, límites)
+  ui/                  Componentes compartidos (tema, campos, selector, mensajes)
+```
