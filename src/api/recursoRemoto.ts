@@ -8,44 +8,46 @@ import { AppState } from "react-native";
  */
 export const crearRecurso = <T,>(cargar: () => Promise<T>, vacio: T, intervaloMs?: number) => {
     const oyentes = new Set<() => void>();
-    let clave: string | null = null;
-    let valor: T = vacio;
-    let enCurso: Promise<void> | null = null;
-    let ultimaCarga = 0;
+    // Estado en un objeto (no en variables sueltas capturadas por cierres): evita un fallo de Hermes en release.
+    const estado: { clave: string | null; dato: T; enCurso: Promise<void> | null; ultimaCarga: number } = {
+        clave: null, dato: vacio, enCurso: null, ultimaCarga: 0,
+    };
 
     const avisar = () => oyentes.forEach((oyente) => oyente());
 
     const cambiarClave = (nueva: string | null) => {
-        if (nueva === clave) return;
-        clave = nueva;
-        valor = vacio;
-        enCurso = null;
-        ultimaCarga = 0;
+        if (nueva === estado.clave) return;
+        estado.clave = nueva;
+        estado.dato = vacio;
+        estado.enCurso = null;
+        estado.ultimaCarga = 0;
         avisar();
     };
 
     /** Vuelve a pedir el dato; las llamadas simultáneas comparten la misma petición. */
     const refrescar = (): Promise<void> => {
-        const paraClave = clave;
+        const paraClave = estado.clave;
         if (!paraClave) return Promise.resolve();
-        enCurso ??= cargar()
-            .then((cargado) => {
-                if (paraClave !== clave) return;
-                valor = cargado;
-                ultimaCarga = Date.now();
-                avisar();
-            })
-            .catch((error) => console.warn("No se pudo cargar desde el servidor:", error))
-            .finally(() => {
-                enCurso = null;
-            });
-        return enCurso;
+        if (!estado.enCurso) {
+            estado.enCurso = cargar()
+                .then((cargado) => {
+                    if (paraClave !== estado.clave) return;
+                    estado.dato = cargado;
+                    estado.ultimaCarga = Date.now();
+                    avisar();
+                })
+                .catch((error) => console.warn("No se pudo cargar desde el servidor:", error))
+                .finally(() => {
+                    estado.enCurso = null;
+                });
+        }
+        return estado.enCurso;
     };
 
     /** Reemplaza el dato con lo que devolvió una operación (evita otra petición). */
     const setear = (nuevo: T) => {
-        valor = nuevo;
-        ultimaCarga = Date.now();
+        estado.dato = nuevo;
+        estado.ultimaCarga = Date.now();
         avisar();
     };
 
@@ -62,9 +64,9 @@ export const crearRecurso = <T,>(cargar: () => Promise<T>, vacio: T, intervaloMs
             cambiarClave(claveActual);
             if (!claveActual) return;
             // Varias pantallas montan a la vez: solo se carga si el dato no es reciente.
-            if (Date.now() - ultimaCarga > 2000) void refrescar();
-            const suscripcion = AppState.addEventListener("change", (estado) => {
-                if (estado === "active") void refrescar();
+            if (Date.now() - estado.ultimaCarga > 2000) void refrescar();
+            const suscripcion = AppState.addEventListener("change", (nuevoEstado) => {
+                if (nuevoEstado === "active") void refrescar();
             });
             const temporizador = intervaloMs ? setInterval(() => {
                 if (AppState.currentState === "active") void refrescar();
@@ -75,9 +77,9 @@ export const crearRecurso = <T,>(cargar: () => Promise<T>, vacio: T, intervaloMs
             };
         }, [claveActual]);
 
-        const actual = useSyncExternalStore(suscribir, () => valor);
-        return claveActual !== null && claveActual === clave ? actual : vacio;
+        const actual = useSyncExternalStore(suscribir, () => estado.dato);
+        return claveActual !== null && claveActual === estado.clave ? actual : vacio;
     };
 
-    return { useValor, refrescar, setear, leer: () => valor, limpiar: () => cambiarClave(null) };
+    return { useValor, refrescar, setear, leer: () => estado.dato, limpiar: () => cambiarClave(null) };
 };
